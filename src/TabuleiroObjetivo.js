@@ -22,16 +22,16 @@ class Personagem {
     mover(direcao) {
         switch (direcao) {
             case 'cima':
-                this.posicao.y -= 1;
+                this.posicao.y = Math.max(this.posicao.y - 1, 0);
                 break;
             case 'baixo':
-                this.posicao.y += 1;
+                this.posicao.y = Math.min(this.posicao.y + 1, 9);
                 break;
             case 'esquerda':
-                this.posicao.x -= 1;
+                this.posicao.x = Math.max(this.posicao.x - 1, 0);
                 break;
             case 'direita':
-                this.posicao.x += 1;
+                this.posicao.x = Math.min(this.posicao.x + 1, 9);
                 break;
             default:
                 return false;
@@ -47,10 +47,11 @@ class Personagem {
     }
 }
 class Tabuleiro {
-    constructor(largura, altura) {
+    constructor(largura, altura, vilao) {
         this.largura = largura;
         this.altura = altura;
         this.personagens = [];
+        this.vilao = vilao;
     }
     adicionarPersonagem(personagem) {
         this.personagens.push(personagem);
@@ -61,26 +62,55 @@ class Tabuleiro {
     encontrarPersonagem(nome) {
         return this.personagens.find(personagem => personagem.nome === nome);
     }
+    moverVilao() {
+        this.vilao.posicao.x = Math.floor(Math.random() * this.largura);
+        this.vilao.posicao.y = Math.floor(Math.random() * this.altura);
+    }
+    atualizarTabuleiro(mostrarVilao = false) {
+        const tabuleiroElemento = document.getElementById("tabuleiro");
+        if (tabuleiroElemento) {
+            tabuleiroElemento.innerHTML = '';
+            for (let y = 0; y < this.altura; y++) {
+                for (let x = 0; x < this.largura; x++) {
+                    const celula = document.createElement("div");
+                    celula.classList.add("celula");
+                    const personagem = this.personagens.find(p => p.posicao.x === x && p.posicao.y === y);
+                    if (personagem) {
+                        celula.classList.add(personagem.nome.toLowerCase() === "herói" ? "heroi" : "vilao");
+                        celula.innerText = personagem.nome.charAt(0);
+                    }
+                    else if (mostrarVilao && this.vilao.posicao.x === x && this.vilao.posicao.y === y) {
+                        celula.classList.add("vilao");
+                        celula.innerText = this.vilao.nome.charAt(0);
+                    }
+                    tabuleiroElemento.appendChild(celula);
+                }
+            }
+        }
+    }
+    fornecerDica() {
+        // Fornece uma dica sutil sobre a localização do vilão
+        const distancia = this.personagens[0].posicao.distanciaPara(this.vilao.posicao);
+        return `Dica: O vilão está a aproximadamente ${distancia.toFixed(1)} unidades de distância.`;
+    }
 }
 // Código de exemplo para criar personagens e tabuleiro
-let tabuleiro = new Tabuleiro(10, 10);
 let pos1 = new Position(1, 1);
 let pos2 = new Position(2, 2);
 let p1 = new Personagem("Herói", 100, 1, 10, pos1);
 let p2 = new Personagem("Vilão", 100, 1, 10, pos2);
+let tabuleiro = new Tabuleiro(10, 10, p2);
 tabuleiro.adicionarPersonagem(p1);
-tabuleiro.adicionarPersonagem(p2);
-// Função para atualizar o status do jogo
-function atualizarStatus() {
+function atualizarStatus(mostrarVilao = false) {
     const status = document.getElementById("status");
     if (status) {
         status.innerHTML = `
             <p>${p1.nome}: Saúde = ${p1.saude}, Posição = (${p1.posicao.x}, ${p1.posicao.y})</p>
-            <p>${p2.nome}: Saúde = ${p2.saude}, Posição = (${p2.posicao.x}, ${p2.posicao.y})</p>
+            <p>${tabuleiro.fornecerDica()}</p>
         `;
     }
+    tabuleiro.atualizarTabuleiro(mostrarVilao);
 }
-// Funções para os botões
 (_a = document.getElementById("move-up")) === null || _a === void 0 ? void 0 : _a.addEventListener("click", () => {
     p1.mover("cima");
     atualizarStatus();
@@ -98,8 +128,15 @@ function atualizarStatus() {
     atualizarStatus();
 });
 (_e = document.getElementById("attack")) === null || _e === void 0 ? void 0 : _e.addEventListener("click", () => {
-    p1.atacar(p2);
-    atualizarStatus();
+    if (p1.atacar(p2)) {
+        atualizarStatus(true);
+        setTimeout(() => {
+            tabuleiro.moverVilao();
+            atualizarStatus();
+        }, 1000);
+    }
+    else {
+        atualizarStatus();
+    }
 });
-// Atualizar o status inicial
 atualizarStatus();
